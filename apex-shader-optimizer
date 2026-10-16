@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Inspect and prepare Proton shader-cache directories.
+
+This helper does not claim to precompile shaders: only the game and graphics
+runtime can do that. It reports cache size/file count and can create the cache
+directory. `--print-env` prints launch-environment candidates for a wrapper.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import time
+from pathlib import Path
+
+
+def cache_dir() -> Path:
+    return Path(os.environ.get("DXVK_STATE_CACHE_PATH", "~/.cache/dxvk")).expanduser()
+
+
+def cache_stats(path: Path) -> dict[str, int]:
+    files = 0
+    size = 0
+    if path.exists():
+        for item in path.rglob("*"):
+            if item.is_file():
+                files += 1
+                try:
+                    size += item.stat().st_size
+                except OSError:
+                    pass
+    return {"files": files, "bytes": size}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Inspect Proton DXVK shader cache")
+    parser.add_argument("--prepare", action="store_true", help="create the cache directory")
+    parser.add_argument("--print-env", action="store_true", help="print safe launch variables")
+    args = parser.parse_args()
+    path = cache_dir()
+    if args.prepare:
+        path.mkdir(parents=True, exist_ok=True)
+    before = time.perf_counter()
+    stats = cache_stats(path)
+    elapsed_ms = (time.perf_counter() - before) * 1000
+    print(f"cache_dir={path}")
+    print(f"files={stats['files']}")
+    print(f"bytes={stats['bytes']}")
+    print(f"scan_ms={elapsed_ms:.3f}")
+    if args.print_env:
+        print("DXVK_STATE_CACHE=1")
+        print(f"DXVK_STATE_CACHE_PATH={path}")
+    print("note=This tool does not precompile shaders or guarantee an FPS gain.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

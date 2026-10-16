@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""
+Proton-Apex Diagnostic & Telemetry Collector
+Analyses environment, GPU driver, Vulkan capabilities, and recent game crash logs.
+"""
+
+import sys
+import os
+import platform
+import subprocess
+import json
+
+def get_system_info():
+    info = {}
+    info["os"] = platform.platform()
+    info["kernel"] = platform.release()
+    info["python"] = sys.version.split()[0]
+    
+    # Check CPU
+    try:
+        with open("/proc/cpuinfo", "r") as f:
+            for line in f:
+                if "model name" in line:
+                    info["cpu"] = line.split(":")[1].strip()
+                    break
+    except Exception:
+        info["cpu"] = "Unknown"
+
+    # Check GPU via lspci or glxinfo
+    try:
+        lspci = subprocess.check_output(["lspci"], stderr=subprocess.DEVNULL).decode("utf-8")
+        gpus = [line for line in lspci.splitlines() if "VGA" in line or "3D" in line]
+        info["gpus"] = gpus
+    except Exception:
+        info["gpus"] = []
+
+    return info
+
+def check_vulkan():
+    status = {"vulkan_present": False, "devices": []}
+    try:
+        out = subprocess.check_output(["vulkaninfo", "--summary"], stderr=subprocess.DEVNULL).decode("utf-8")
+        status["vulkan_present"] = True
+        status["summary"] = out.strip().splitlines()[:15]
+    except Exception as e:
+        status["error"] = str(e)
+    return status
+
+def generate_report():
+    print("=" * 60)
+    print("      Proton-Apex 1.0 Diagnostic Report Generator")
+    print("=" * 60)
+    
+    sys_info = get_system_info()
+    print(f"\n[+] OS / Kernel : {sys_info.get('os')} ({sys_info.get('kernel')})")
+    print(f"[+] CPU         : {sys_info.get('cpu')}")
+    print("[+] GPUs Detected:")
+    for gpu in sys_info.get("gpus", []):
+        print(f"    - {gpu}")
+        
+    vk_info = check_vulkan()
+    print(f"\n[+] Vulkan Available: {vk_info['vulkan_present']}")
+    if vk_info['vulkan_present']:
+        print("    Vulkan Summary:")
+        for line in vk_info.get("summary", []):
+            print(f"      {line}")
+    else:
+        print("    WARN: vulkaninfo failed or Vulkan driver not present.")
+
+    print("\n[+] Proton-Apex Safe Defaults:")
+    print("    - Vulkan translation path preserved (DXVK/VKD3D-Proton)")
+    print("    - Proton capability checks control fsync/esync")
+    print("    - PROTON_FORCE_LARGE_ADDRESS_AWARE = 1")
+    print("    - Anti-cheat and latency technologies are not bypassed or faked")
+    print("=" * 60)
+
+if __name__ == "__main__":
+    generate_report()

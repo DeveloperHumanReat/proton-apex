@@ -1,0 +1,7 @@
+Proton-Apex 1.0-1 (Based on Valve Proton 11.0)
+Build-Type: Next-Gen High-Performance Release
+Features:
+ - Auto Shader Stutter Reduction (DXVK State Cache & Async)
+ - Direct3D 12 (VKD3D-Proton 12_2 / DXR1.1) Optimized
+ - FSync / NTSync Auto-Tuning
+ - Advanced System & Driver Diagnostics

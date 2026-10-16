@@ -1,0 +1,65 @@
+name: Proton-Apex CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      full_build:
+        description: "Run the large containerized Proton SDK build"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate scripts and manifests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - name: Python syntax
+        run: python3 -m py_compile user_settings.py game_profiles.py apex-config apex-diag apex-gui.py apex-platform-check apex-shader-bench apex-shader-optimizer
+      - name: Portable platform check
+        run: ./apex-platform-check
+      - name: Profile and cache smoke tests
+        run: |
+          ./apex-shader-optimizer --prepare --print-env
+          ./apex-shader-bench
+          STEAM_COMPAT_APP_ID=1172470 python3 game_profiles.py
+      - name: Check generated files
+        run: test ! -d __pycache__ || rm -rf __pycache__
+
+  full-build:
+    name: Containerized Proton SDK build
+    if: github.event_name == 'workflow_dispatch' && inputs.full_build == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Build Proton redist with the upstream SDK workflow
+        run: |
+          mkdir -p ../apex-build
+          cd ../apex-build
+          "$GITHUB_WORKSPACE/configure.sh" --container-engine=docker --build-name=proton-apex-ci
+          make redist 2>&1 | tee proton-build.log
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: proton-apex-build-log
+          path: ../apex-build/proton-build.log
+      - name: Upload redistributable
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: proton-apex-redist
+          path: ../apex-build/redist

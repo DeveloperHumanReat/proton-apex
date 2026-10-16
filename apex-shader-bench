@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""Benchmark the cache helper itself, not game performance."""
+
+from __future__ import annotations
+
+import statistics
+import subprocess
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+COMMAND = [str(ROOT / "apex-shader-optimizer"), "--prepare"]
+
+samples = []
+for _ in range(5):
+    start = time.perf_counter()
+    subprocess.run(COMMAND, check=True, stdout=subprocess.DEVNULL)
+    samples.append((time.perf_counter() - start) * 1000)
+
+print("Shader cache helper benchmark")
+print(f"samples={len(samples)}")
+print(f"min_ms={min(samples):.3f}")
+print(f"median_ms={statistics.median(samples):.3f}")
+print(f"max_ms={max(samples):.3f}")
+print("game_fps=not measured (no game/runtime in sandbox)")
+print("shader_compile_stutter=not measured (requires a real Vulkan game run)")
