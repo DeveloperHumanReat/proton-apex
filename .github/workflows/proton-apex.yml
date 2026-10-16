@@ -47,8 +47,8 @@ jobs:
           fetch-depth: 0
       - name: Build Proton redist with the upstream SDK workflow
         run: |
-          mkdir -p ../apex-build
-          cd ../apex-build
+          mkdir -p build-ci
+          cd build-ci
           "$GITHUB_WORKSPACE/configure.sh" --container-engine=docker --build-name=proton-apex-ci
           make redist 2>&1 | tee proton-build.log
       - name: Upload build log
@@ -56,10 +56,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: proton-apex-build-log
-          path: ../apex-build/proton-build.log
+          path: build-ci/proton-build.log
       - name: Upload redistributable
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: proton-apex-redist
-          path: ../apex-build/redist
+          path: build-ci/redist
